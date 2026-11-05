@@ -1,12 +1,14 @@
 import { CodeChefError } from "./errors.js";
 
 const BASE = "https://www.codechef.com/users/";
+const ALLOWED_HOST = "www.codechef.com";
 const USER_AGENT =
-  "codechef-mcp/0.1 (+https://github.com/; profile reader for LLM tooling)";
+  "codechef-mcp/0.1 (+https://github.com/sarthaksec/codechef-mcp)";
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const MIN_INTERVAL_MS = 800;
 const REQUEST_TIMEOUT_MS = 25_000;
 const MAX_RETRIES = 3;
+const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 
 const cache = new Map();
 let lastRequestAt = 0;
@@ -78,7 +80,16 @@ export async function fetchUserPage(handle, { force = false } = {}) {
         });
       }
 
-      const html = await res.text();
+      // Never follow a redirect off CodeChef (defends against an upstream
+      // redirect being used to point the client at another host).
+      if (new URL(res.url).hostname !== ALLOWED_HOST) {
+        throw new CodeChefError(
+          `Refusing response redirected to unexpected host: ${new URL(res.url).hostname}`,
+          { code: "UNEXPECTED_REDIRECT" },
+        );
+      }
+
+      const html = await readTextCapped(res, MAX_RESPONSE_BYTES);
 
       if (isCloudflareChallenge(html)) {
         lastErr = new CodeChefError(
@@ -124,6 +135,45 @@ export async function fetchUserPage(handle, { force = false } = {}) {
     }`,
     { code: "FETCH_FAILED", retryable: true },
   );
+}
+
+export async function readTextCapped(res, maxBytes) {
+  const declared = Number(res.headers.get("content-length") ?? 0);
+  if (declared > maxBytes) {
+    throw new CodeChefError(`Response too large (${declared} bytes).`, {
+      code: "RESPONSE_TOO_LARGE",
+    });
+  }
+  if (!res.body) return res.text();
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let out = "";
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => {});
+        throw new CodeChefError(
+          `Response exceeded ${maxBytes} bytes; aborted to protect memory.`,
+          { code: "RESPONSE_TOO_LARGE" },
+        );
+      }
+      out += decoder.decode(value, { stream: true });
+    }
+    out += decoder.decode();
+    return out;
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {
+      /* already released */
+    }
+  }
 }
 
 function looksLikeProfile(html) {

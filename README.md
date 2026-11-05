@@ -79,7 +79,7 @@ node test/smoke.js aryanc403
 Config uses `mcp.servers`. Either run:
 
 ```sh
-opencode mcp add codechef --global -- node "C:/Users/sarth/OneDrive/Desktop/codechef-mcp/src/server.js"
+opencode mcp add codechef --global -- node "/path/to/codechef-mcp/src/server.js"
 ```
 
 or add it by hand to `~/.config/opencode/opencode.jsonc`:
@@ -91,8 +91,8 @@ or add it by hand to `~/.config/opencode/opencode.jsonc`:
     "servers": {
       "codechef": {
         "type": "local",
-        "command": ["node", "C:/Users/sarth/OneDrive/Desktop/codechef-mcp/src/server.js"],
-        "cwd": "C:/Users/sarth/OneDrive/Desktop/codechef-mcp"
+        "command": ["node", "/path/to/codechef-mcp/src/server.js"],
+        "cwd": "/path/to/codechef-mcp"
       }
     }
   }
@@ -111,7 +111,7 @@ Then check it with `opencode mcp list`. Under Code Mode the tools appear as
   "mcpServers": {
     "codechef": {
       "command": "node",
-      "args": ["C:/Users/sarth/OneDrive/Desktop/codechef-mcp/src/server.js"]
+      "args": ["/path/to/codechef-mcp/src/server.js"]
     }
   }
 }
@@ -125,6 +125,19 @@ Then check it with `opencode mcp list`. Under Code Mode the tools appear as
 - **Errors:** typed codes — `INVALID_HANDLE`, `USER_NOT_FOUND`, `BLOCKED`, `UNPARSEABLE`,
   `FETCH_FAILED` — returned with `isError: true` so the model can react instead of retrying blindly.
 - **User-Agent:** identifies the client; requests are one profile page at a time.
+
+## Security
+
+- **Outbound HTTPS only, to `www.codechef.com`.** Responses redirected to any other host are rejected.
+- **TLS verification** is on (Node's default `fetch`; no `rejectUnauthorized: false` anywhere).
+- **Bounded resources:** 5 MB response cap (streamed, aborts mid-body), 25 s timeout, 3 retries,
+  200-entry cache.
+- **No `eval`, no `new Function`, no child processes, no filesystem or environment access.**
+- **No credentials** are read, stored, or sent — requests are anonymous.
+- **Handle whitelisting:** handles must match `^[A-Za-z0-9._-]{1,64}$` and are URL-encoded, so a
+  handle cannot alter the request path.
+- **Null-prototype maps** for page-derived keys, so a crafted label cannot touch `Object.prototype`.
+- Publishing is limited by the `files` field: only `src/` + docs ship to npm.
 
 ## Caveats
 

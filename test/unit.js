@@ -1,5 +1,5 @@
 import { parseUserPage, extractJsonArray } from "../src/parse.js";
-import { isNotFoundPage, isCloudflareChallenge } from "../src/http.js";
+import { isNotFoundPage, isCloudflareChallenge, readTextCapped } from "../src/http.js";
 
 let pass = 0;
 let fail = 0;
@@ -69,6 +69,28 @@ eq(
   true,
 );
 eq("profile page is not 'not found'", isNotFoundPage(html), false);
+
+// --- response size guard ---
+eq("readTextCapped returns a normal body", await readTextCapped(new Response("hello"), 100), "hello");
+
+let capCode = null;
+try {
+  await readTextCapped(new Response("x".repeat(200)), 50);
+} catch (e) {
+  capCode = e.code;
+}
+eq("readTextCapped stops an oversized stream", capCode, "RESPONSE_TOO_LARGE");
+
+capCode = null;
+try {
+  await readTextCapped(
+    new Response("abc", { headers: { "content-length": "999999" } }),
+    50,
+  );
+} catch (e) {
+  capCode = e.code;
+}
+eq("readTextCapped rejects a huge content-length", capCode, "RESPONSE_TOO_LARGE");
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

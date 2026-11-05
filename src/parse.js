@@ -70,7 +70,7 @@ export function parseUserPage(html, handle) {
   const username = clean($(".m-username--link").first().text()) || handle;
 
   // Sidebar: Username / Country / Student-Professional / Organisation / Pro Plan
-  const sidebar = {};
+  const sidebar = Object.create(null);
   $(".user-details li").each((_, li) => {
     const $li = $(li);
     const label = clean($li.find("label").first().text())
@@ -96,7 +96,7 @@ export function parseUserPage(html, handle) {
   const division = /\(Div\s*(\d+)\)/i.exec(headerText)?.[1] ?? null;
   const highestRating = num(/(\d+)/.exec(clean(block.find("small").first().text()))?.[1]);
 
-  const ranks = {};
+  const ranks = Object.create(null);
   block.find(".rating-ranks li").each((_, li) => {
     const $li = $(li);
     const value = clean($li.find("strong").first().text());
