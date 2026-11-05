@@ -64,10 +64,22 @@ jobs:
       - name: Run offline tests
         run: npm run test:unit
 
+      - name: Check for an existing version
+        id: existing
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if npm view "codechef-mcp@$VERSION" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "codechef-mcp@$VERSION is already on npm; skipping publish."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # npm detects the GitHub OIDC environment and exchanges it for a
       # short-lived publish token. Provenance is generated automatically
       # for public packages in public repositories.
       - name: Publish
+        if: steps.existing.outputs.published != 'true'
         run: |
           unset NODE_AUTH_TOKEN
           npm publish
