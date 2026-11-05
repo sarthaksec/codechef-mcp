@@ -1,0 +1,49 @@
+{
+  "name": "codechef-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that turns CodeChef user profiles into structured JSON for LLMs",
+  "type": "module",
+  "main": "src/server.js",
+  "bin": {
+    "codechef-mcp": "src/server.js"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node test/unit.js && node test/smoke.js && node test/mcp.js",
+    "test:unit": "node test/unit.js",
+    "test:live": "node test/smoke.js",
+    "test:mcp": "node test/mcp.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "codechef",
+    "competitive-programming",
+    "scraper",
+    "llm"
+  ],
+  "author": "Sarthak Agnihotri (sarthaksec)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sarthaksec/codechef-mcp.git"
+  },
+  "homepage": "https://github.com/sarthaksec/codechef-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/sarthaksec/codechef-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "cheerio": "^1.2.0",
+    "zod": "^4.6.7"
+  }
+}
