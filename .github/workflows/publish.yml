@@ -29,8 +29,20 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-          registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
+
+      # Do NOT pass registry-url here. setup-node injects a placeholder
+      # NODE_AUTH_TOKEN, which can make npm fall back to token auth and skip
+      # the OIDC exchange. npm's default registry is already npmjs.org.
+      - name: Check OIDC environment
+        run: |
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_URL" || { echo "OIDC URL missing"; exit 1; }
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" || { echo "OIDC token missing"; exit 1; }
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            echo "NODE_AUTH_TOKEN is set; this can disable trusted publishing"
+            exit 1
+          fi
+          echo "OIDC environment OK"
 
       - name: Use latest npm
         run: |
@@ -56,4 +68,6 @@ jobs:
       # short-lived publish token. Provenance is generated automatically
       # for public packages in public repositories.
       - name: Publish
-        run: npm publish
+        run: |
+          unset NODE_AUTH_TOKEN
+          npm publish
