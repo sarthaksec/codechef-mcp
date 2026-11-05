@@ -1,6 +1,7 @@
 # codechef-mcp
 
 [![npm](https://img.shields.io/npm/v/codechef-mcp)](https://www.npmjs.com/package/codechef-mcp)
+[![CI](https://github.com/sarthaksec/codechef-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/sarthaksec/codechef-mcp/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](package.json)
 
@@ -54,32 +55,12 @@ Or globally:
 npm install -g codechef-mcp
 ```
 
-## Quick start
-
-```sh
-cd codechef-mcp
-npm install
-npm test          # unit + live + MCP handshake
-```
-
-Run the server directly (it speaks MCP over stdio):
-
-```sh
-npm start
-```
-
-Try the scraper without MCP:
-
-```sh
-node test/smoke.js aryanc403
-```
-
 ## Wiring it into OpenCode (V2)
 
 Config uses `mcp.servers`. Either run:
 
 ```sh
-opencode mcp add codechef --global -- node "/path/to/codechef-mcp/src/server.js"
+opencode mcp add codechef --global -- npx -y codechef-mcp
 ```
 
 or add it by hand to `~/.config/opencode/opencode.jsonc`:
@@ -91,8 +72,7 @@ or add it by hand to `~/.config/opencode/opencode.jsonc`:
     "servers": {
       "codechef": {
         "type": "local",
-        "command": ["node", "/path/to/codechef-mcp/src/server.js"],
-        "cwd": "/path/to/codechef-mcp"
+        "command": ["npx", "-y", "codechef-mcp"]
       }
     }
   }
@@ -110,12 +90,99 @@ Then check it with `opencode mcp list`. Under Code Mode the tools appear as
 {
   "mcpServers": {
     "codechef": {
-      "command": "node",
-      "args": ["/path/to/codechef-mcp/src/server.js"]
+      "command": "npx",
+      "args": ["-y", "codechef-mcp"]
     }
   }
 }
 ```
+
+On Windows, if the client cannot find `npx`, use the shell form:
+
+```json
+{
+  "mcpServers": {
+    "codechef": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "codechef-mcp"]
+    }
+  }
+}
+```
+
+## Run from source
+
+```sh
+git clone https://github.com/sarthaksec/codechef-mcp.git
+cd codechef-mcp
+npm install
+npm start          # speaks MCP over stdio
+```
+
+Point your MCP client at `src/server.js` inside the clone, or call the scraper directly:
+
+```sh
+node test/smoke.js aryanc403
+```
+
+## Development
+
+```sh
+npm install
+npm run test:unit  # offline parser + security tests
+npm run test:live  # live CodeChef scraper checks
+npm run test:mcp   # end-to-end MCP client handshake
+npm test           # all three
+```
+
+`test:unit` is fully offline and runs in CI on Node 20, 22 and 24. The live suites
+depend on CodeChef being reachable and are not run in CI.
+
+## Releasing
+
+Releases are published from GitHub Actions using **trusted publishing (OIDC)** — there is
+no `NPM_TOKEN` secret and no long-lived npm credential.
+
+```sh
+npm version patch        # or minor / major
+git push --follow-tags
+```
+
+Pushing the tag (for example `v0.1.1`) triggers `.github/workflows/publish.yml`, which:
+
+1. checks that the tag matches `package.json`'s version,
+2. installs with `npm ci` and runs the offline tests,
+3. runs `npm publish` authenticated by a short-lived OIDC token,
+4. publishes **provenance attestations automatically** (public package, public repo).
+
+### One-time trusted publisher setup
+
+On [npmjs.com](https://www.npmjs.com/package/codechef-mcp) → package **Settings** →
+**Trusted publishing** → **Add trusted publisher** → GitHub Actions:
+
+| Field | Value |
+| --- | --- |
+| Organization or user | `sarthaksec` |
+| Repository | `codechef-mcp` |
+| Workflow filename | `publish.yml` |
+| Environment name | *(leave blank)* |
+| Allowed actions | ✅ **Allow npm publish** (and optionally **Allow npm dist-tag**) |
+
+Newer configurations default to *stage-only* publishing. If **Allow npm publish** is not
+selected, the workflow's `npm publish` step is rejected; either enable it or change the
+workflow to `npm stage publish` and approve each release manually with 2FA.
+
+The first publish must succeed within **2 days** of creating the configuration, otherwise it
+expires and has to be recreated.
+
+### Verifying provenance
+
+```sh
+npm audit signatures
+```
+
+Or open the package on npmjs.com — a **Provenance** badge links the published tarball to the
+exact commit and workflow run that built it.
 
 ## Behavior
 
@@ -138,6 +205,8 @@ Then check it with `opencode mcp list`. Under Code Mode the tools appear as
   handle cannot alter the request path.
 - **Null-prototype maps** for page-derived keys, so a crafted label cannot touch `Object.prototype`.
 - Publishing is limited by the `files` field: only `src/` + docs ship to npm.
+- **Releases use OIDC trusted publishing**, not a long-lived npm token, and ship with provenance
+  attestations from GitHub Actions.
 
 ## Caveats
 
